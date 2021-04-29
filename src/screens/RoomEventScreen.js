@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useContext} from 'react';
+import React, {useState, useEffect, useContext, Component} from 'react';
 import {View, StyleSheet, FlatList, TextInput} from 'react-native';
 import {
     Dialog,
@@ -24,31 +24,36 @@ import useStatsBar from '../utils/useStatusBar';
 import {AuthContext} from '../navigation/AuthProvider';
 import {dateForHumans, formatDate} from '../function';
 
+export default class RoomParamScreen extends Component {
+    static contextType = AuthContext;
 
-export default function RoomParamScreen({route, navigation}) {
-    useStatsBar('light-content');
+    constructor(props) {
+        super(props);
+        //useStatsBar('light-content');
+        //const {user} = useContext(AuthContext);
+        //const currentUser = user.toJSON();
+        console.log('\n\n');
+        this.state = {
+            threadInfo: props.route.params,
+            currentUser: undefined,
+            loading: true,
+            show: false,
+            step: 0,
+            mevent: {},
+            visible: false,
+            display: 'default',
+            mode: 'date',
+            date: new Date(),
+            event: [],
+        };
+    }
 
-    const [event, setEvent] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [date, setDate] = useState(new Date(1598051730000));
-    const [mode, setMode] = useState('date');
-    const [display, setDisplay] = useState('default');
-    const [show, setShow] = useState(false);
-    const [step, setStep] = useState(0);
+    componentDidMount() {
+        if (!this.state.currentUser) {
+            this.state.currentUser = this.context.user;
+        }
 
-    const [visible, setVisible] = React.useState(false);
-
-    const showDialog = () => setVisible(true);
-
-    const hideDialog = () => setVisible(false);
-
-
-    const {user} = useContext(AuthContext);
-    const currentUser = user.toJSON();
-    let threadInfo = route.params;
-
-    useEffect(() => {
-        const sfRef = firestore().collection('THREADS').doc(threadInfo._id).collection('MESSAGES');
+        const sfRef = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
         const getUsers = sfRef
             .orderBy('createdAt', 'asc')
             .where('event', '==', true)
@@ -76,203 +81,144 @@ export default function RoomParamScreen({route, navigation}) {
                         uArray.push({...data, msgID: us.id});
                     }
 
-                    setEvent(uArray);
+                    this.setState({event: uArray});
                 }
-                setLoading(false);
+                this.setState({loading: false});
             });
+    }
 
-        return () => getUsers();
-    }, []);
-
-    const onChange = (event, selectedDate) => {
-        console.log(selectedDate)
-        const currentDate = selectedDate || date;
-        setShow(Platform.OS === 'ios');
-        setDate(currentDate);
+    onChange(event, selectedDate) {
+        console.log(selectedDate);
+        const currentDate = selectedDate || this.state.date;
+        this.setState({
+            show: Platform.OS === 'ios',
+            date: currentDate,
+        });
     };
 
-    const showMode = (currentMode, _display = 'default') => {
-        if (display !== _display) {
-            setDisplay(_display);
+    showDialog() {
+        this.setState({visible: true});
+    };
+
+    hideDialog() {
+        this.setState({visible: false});
+    };
+
+    showMode(currentMode, _display = 'default') {
+        if (this.state.display !== _display) {
+            this.setState({display: _display});
         }
-        setShow(true);
-        setMode(currentMode);
+        this.setState({
+            show: true,
+            mode: currentMode,
+        });
     };
 
-    const showDatepicker = () => {
-        showMode('date', 'default');
+    showDatepicker() {
+        this.showMode('date', 'default');
     };
 
-    const showTimepicker = () => {
-        showMode('time', 'default');
+    showTimepicker() {
+        this.showMode('time', 'default');
     };
 
-    const showSpinnerpicker = () => {
-        showMode('time', 'spinner');
+    showSpinnerpicker() {
+        this.showMode('time', 'spinner');
     };
 
-
-    // async function deleteUsers(user) {
-    //     let uData = await database().ref(`/users/${user.uid}/threads`).once('value');
-    //     const key = Object.keys(uData.val()).find(key => uData.val()[key] === threadInfo._id);
-    //     database().ref(`/users/${user.uid}/threads`).child(key).remove();
-    //     uData = await firestore().collection('THREADS').doc(threadInfo._id).collection('USERS').doc(user.msgID);
-    //     uData.delete();
-    // }
-
-
-    function reIcon(item) {
-        // onPress={() => deleteUsers(item)}
+    reIcon() {
+        const {currentUser, threadInfo} = this.state;
         if (currentUser.uid === threadInfo.author) {
             return <IconButton color={Colors.red500} icon="delete"/>;
         }
-
     }
 
-    function renderMaker() {
+    renderMaker() {
         return (
             <>
                 <Title style={styles.title}>Créer un Event</Title>
-
-                <Button onPress={showDialog}>Show Dialog</Button>
-                {/*<View style={[styles.statsContainer, {justifyContent: 'space-around'}]}>*/}
-                {/*    <View>*/}
-                {/*        <Text>la date</Text>*/}
-                {/*        <IconButton onPress={showDatepicker} color={Colors.blue500} icon="calendar-outline"/>*/}
-                {/*    </View>*/}
-                {/*    <View>*/}
-                {/*        <Text>l'heure</Text>*/}
-                {/*        <IconButton onPress={showTimepicker} color={Colors.blue500} icon="clock-outline"/>*/}
-                {/*    </View>*/}
-                {/*    <View>*/}
-                {/*        <Text>durée</Text>*/}
-                {/*        <IconButton onPress={showSpinnerpicker} color={Colors.blue500} icon="timer-outline"/>*/}
-                {/*    </View>*/}
-                {/*</View>*/}
+                <Button onPress={() => console.log('test')}>Show Dialog</Button>
             </>
         );
     }
 
-    function renderModal() {
-        switch (step) {
-            case 0:
-                return (
-                    <View>
-                        <Text>la date : {date.toDateString()}</Text>
-                        <IconButton onPress={showDatepicker} color={Colors.blue500} icon="calendar-outline"/>
-                    </View>
-                );
-            case 1:
-                return (
-                    <View>
-                        <Text>l'heure : {date.toDateString()}</Text>
-                        <IconButton onPress={showTimepicker} color={Colors.blue500} icon="clock-outline"/>
-                    </View>
-                );
-            case 2:
-                return (
-                    <View>
-                        <Text>durée : {date.toDateString()}</Text>
-                        <IconButton onPress={showSpinnerpicker} color={Colors.blue500} icon="timer-outline"/>
-                    </View>
-                );
-            case 3:
-                return (
-                    <View>
-                        <Text>{'{date} = date  {heure} = heure  {duree} = duree'}</Text>
-                        <View style={styles.textAreaContainer}>
-                            <TextInput
-                                style={styles.textArea}
-                                underlineColorAndroid="transparent"
-                                placeholder="Type something"
-                                placeholderTextColor="grey"
-                                multiline={true}
-                                numberOfLines={10}
-                                // onChangeText={(text) => this.setState({text})}
-                                // value={this.state.text}
-                            />
-                        </View>
-                    </View>
-                );
+    render() {
+        const {loading, currentUser, threadInfo, event, show, date, display, mode, visible} = this.state;
+        if (loading) {
+            return <Loading/>;
         }
-    }
+        return (
+            <View style={styles.container}>
 
-    if (loading) {
-        return <Loading/>;
-    }
+                {currentUser.uid === threadInfo.author && this.renderMaker()}
 
-    return (
-        <View style={styles.container}>
-
-            {currentUser.uid === threadInfo.author && renderMaker()}
-
-            <Title style={styles.title}>Events</Title>
-            <FlatList
-                data={event}
-                keyExtractor={item => item.msgID}
-                ItemSeparatorComponent={() => <Divider/>}
-                ListEmptyComponent={() => (
-                    <View style={styles.emptyContainer}>
-                        <Text>Pas d'evenement</Text>
-                    </View>
-                )}
-                renderItem={({item}) => (
-                    <View style={{marginLeft: 20, marginTop: 20, flexDirection: 'row'}}>
-                        <View style={{flex: 1}}>
-                            <Title style={styles.listTitle}>{item.text}</Title>
-                            <Subheading style={styles.listDescription}>Pour
-                                le {formatDate(item.for.toDate())}</Subheading>
-                            <Subheading style={styles.listDescription}>durée : {dateForHumans(item.length)}</Subheading>
-                            <View style={styles.statsContainer}>
-                                <Text>Stats : </Text>
+                <Title style={styles.title}>Events</Title>
+                <FlatList
+                    data={event}
+                    keyExtractor={item => item.msgID}
+                    ItemSeparatorComponent={() => <Divider/>}
+                    ListEmptyComponent={() => (
+                        <View style={styles.emptyContainer}>
+                            <Text>Pas d'evenement</Text>
+                        </View>
+                    )}
+                    renderItem={({item}) => (
+                        <View style={{marginLeft: 20, marginTop: 20, flexDirection: 'row'}}>
+                            <View style={{flex: 1}}>
+                                <Title style={styles.listTitle}>{item.text}</Title>
+                                <Subheading style={styles.listDescription}>
+                                    Pour le {formatDate(item.for.toDate())}
+                                </Subheading>
+                                <Subheading style={styles.listDescription}>
+                                    durée : {dateForHumans(item.length)}
+                                </Subheading>
                                 <View style={styles.statsContainer}>
-                                    <ToggleButton icon="check"/>
-                                    <Text>{item.users.filter(e => e.choice).length}</Text>
+                                    <Text>Stats : </Text>
+                                    <View style={styles.statsContainer}>
+                                        <ToggleButton icon="check"/>
+                                        <Text>{item.users.filter(e => e.choice).length}</Text>
+                                    </View>
+                                    <View style={styles.statsContainer}>
+                                        <ToggleButton icon="close"/>
+                                        <Text>{item.users.filter(e => !e.choice).length}</Text>
+                                    </View>
                                 </View>
-                                <View style={styles.statsContainer}>
-                                    <ToggleButton icon="close"/>
-                                    <Text>{item.users.filter(e => !e.choice).length}</Text>
-                                </View>
+
                             </View>
-
+                            <View style={{alignItems: 'center'}}>
+                                {this.reIcon()}
+                            </View>
                         </View>
-                        <View style={{alignItems: 'center'}}>
-                            {reIcon(item)}
-                        </View>
-                    </View>
-                )}
-            />
-            {show && (
-                <DateTimePicker
-                    testID="dateTimePicker"
-                    minimumDate={new Date()}
-                    value={date}
-                    mode={mode}
-                    is24Hour={true}
-                    display={display}
-                    onChange={onChange}
+                    )}
                 />
-            )}
-            <Portal>
-                <Dialog visible={visible} onDismiss={hideDialog}>
-                    <Dialog.Title>Alert</Dialog.Title>
-                    <Dialog.Content>
-                        {renderModal()}
-                    </Dialog.Content>
-                    <Dialog.Actions>
-                        {step > 0 && <Button onPress={() => {
-                            setStep(step - 1);
-                        }}>Precedent</Button>}
-                        {step < 3 && <Button onPress={() => {
-                            setStep(step + 1);
-                        }}>Suivant</Button>}
-                        {step == 3 && <Button onPress={hideDialog}>Fini</Button>}
-                    </Dialog.Actions>
-                </Dialog>
-            </Portal>
-        </View>
-    );
+                {show && (
+                    <DateTimePicker
+                        testID="dateTimePicker"
+                        minimumDate={new Date()}
+                        value={date}
+                        mode={mode}
+                        is24Hour={true}
+                        display={display}
+                        onChange={this.onChange}
+                    />
+                )}
+                <Portal>
+                    <Dialog visible={visible} onDismiss={this.hideDialog}>
+                        <Dialog.Title>Create Event</Dialog.Title>
+                        <Dialog.Content>
+                            {/*{this.renderModal()}*/}
+                            <Text>rendu</Text>
+                        </Dialog.Content>
+                        <Dialog.Actions>
+                            <Button onPress={this.hideDialog}>Fini</Button>
+                        </Dialog.Actions>
+                    </Dialog>
+                </Portal>
+            </View>
+        );
+    }
 }
+
 
 const styles = StyleSheet.create({
     container: {
@@ -320,6 +266,4 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
 });
-
-
 
