@@ -39,14 +39,18 @@ export default class RoomParamScreen extends Component {
             loading: true,
             show: false,
             step: 0,
-            mevent: {},
+            st: 0,
             visible: false,
             display: 'default',
             mode: 'date',
             date: new Date(),
+            desc: 'Seriez-vous disponible le $d pour une durée de $t',
             event: [],
+            _date: 0,
+            _spin: 0,
         };
     }
+
 
     componentDidMount() {
         if (!this.state.currentUser) {
@@ -54,8 +58,7 @@ export default class RoomParamScreen extends Component {
         }
 
         const sfRef = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
-        const getUsers = sfRef
-            .orderBy('createdAt', 'asc')
+        sfRef.orderBy('createdAt', 'asc')
             .where('event', '==', true)
             .onSnapshot(async querySnapshot => {
                 if (!querySnapshot || querySnapshot.empty) {
@@ -69,7 +72,6 @@ export default class RoomParamScreen extends Component {
 
                         if (usersVote && !usersVote.empty) {
                             for (const _us of usersVote.docs) {
-                                //console.log((_us.id), '=>', {..._us.data(), msgID: _us.id, parent: us.id});
                                 uiArray.push({..._us.data(), msgID: _us.id});
                             }
                         }
@@ -88,12 +90,18 @@ export default class RoomParamScreen extends Component {
     }
 
     onChange(event, selectedDate) {
-        console.log(selectedDate);
-        const currentDate = selectedDate || this.state.date;
-        this.setState({
-            show: Platform.OS === 'ios',
-            date: currentDate,
-        });
+        if (event.type !== 'dismissed') {
+            const currentDate = selectedDate || this.state.date;
+            this.setState({
+                show: Platform.OS === 'ios',
+                date: currentDate,
+            });
+            this.setState({step: this.state.step + 1});
+            //this.eventMaker();
+        } else {
+            this.setState({visible: false, step: 0});
+        }
+
     };
 
     showDialog() {
@@ -114,17 +122,81 @@ export default class RoomParamScreen extends Component {
         });
     };
 
-    showDatepicker() {
-        this.showMode('date', 'default');
-    };
+    eventModal() {
+        const {step} = this.state;
+        switch (step) {
+            case 0:
+                return <Title>Choisir la Date de l'evenement</Title>;
+            case 1:
+                return <Title>Choisir l'heure de début</Title>;
+            case 2:
+                return <Title>Choisir la durée de l'evenement</Title>;
+            case 3:
+                this.eventMaker();
+                return (
+                    <>
+                        <Title>description</Title>
+                        <Text style={{marginTop: 15}}>
+                            $d = {formatDate(this.state._date)} | $t = {dateForHumans(this.state._spin / 1000)}
+                        </Text>
+                        <TextInput
+                            multiline={true}
+                            numberOfLines={4}
+                            onChangeText={(desc) => this.setState({desc})}
+                            value={this.state.desc}
+                            style={{
+                                borderColor: '#DFE1E5',
+                                borderRadius: 5,
+                                borderWidth: 1,
+                                marginTop: 10,
+                                padding: 5,
+                                textAlignVertical: 'top',
+                            }}
+                        />
 
-    showTimepicker() {
-        this.showMode('time', 'default');
-    };
+                        <Text style={{marginTop: 15}}>Text formatter:</Text>
+                        <TextInput
+                            multiline={true}
+                            numberOfLines={4}
+                            disabled={true}
+                            //onChangeText={(desc) => this.setState({desc})}
+                            value={this.state.desc.replace('$d', formatDate(this.state._date)).replace('$t', dateForHumans(this.state._spin / 1000))}
+                            style={{
+                                borderColor: '#DFE1E5',
+                                borderRadius: 5,
+                                borderWidth: 1,
+                                marginTop: 10,
+                                padding: 5,
+                                textAlignVertical: 'top',
+                            }}
+                        />
+                    </>
+                );
+        }
+    }
 
-    showSpinnerpicker() {
-        this.showMode('time', 'spinner');
-    };
+    eventMaker() {
+        const {step} = this.state;
+        switch (step) {
+            case 0:
+                this.state.date = new Date();
+                this.state.date.setSeconds(0, 0);
+                this.showMode('date', 'default');
+                break;
+            case 1:
+                this.showMode('time', 'default');
+                break;
+            case 2:
+                this.state._date = this.state.date;
+                this.state.date = new Date(0);
+                this.showMode('time', 'spinner');
+                break;
+            case 3:
+                this.state._spin = this.state.date.getTime() + Math.abs(this.state.date.getTimezoneOffset()) * 60000;
+                console.log(this.state._spin, this.state._date);
+                break;
+        }
+    }
 
     reIcon() {
         const {currentUser, threadInfo} = this.state;
@@ -137,7 +209,7 @@ export default class RoomParamScreen extends Component {
         return (
             <>
                 <Title style={styles.title}>Créer un Event</Title>
-                <Button onPress={() => console.log('test')}>Show Dialog</Button>
+                <Button onPress={() => this.showDialog()}>Show Dialog</Button>
             </>
         );
     }
@@ -199,18 +271,20 @@ export default class RoomParamScreen extends Component {
                         mode={mode}
                         is24Hour={true}
                         display={display}
-                        onChange={this.onChange}
+                        onChange={(e, sld) => this.onChange(e, sld)}
                     />
                 )}
                 <Portal>
-                    <Dialog visible={visible} onDismiss={this.hideDialog}>
+                    <Dialog visible={visible} onDismiss={() => this.hideDialog()}>
                         <Dialog.Title>Create Event</Dialog.Title>
                         <Dialog.Content>
-                            {/*{this.renderModal()}*/}
-                            <Text>rendu</Text>
+                            {this.eventModal()}
                         </Dialog.Content>
                         <Dialog.Actions>
-                            <Button onPress={this.hideDialog}>Fini</Button>
+
+                            <Button onPress={() => {
+                                this.eventMaker();
+                            }}>Suivant</Button>
                         </Dialog.Actions>
                     </Dialog>
                 </Portal>
