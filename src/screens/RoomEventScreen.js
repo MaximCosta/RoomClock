@@ -97,9 +97,8 @@ export default class RoomParamScreen extends Component {
                 date: currentDate,
             });
             this.setState({step: this.state.step + 1});
-            //this.eventMaker();
         } else {
-            this.setState({visible: false, step: 0});
+            this.hideDialog()
         }
 
     };
@@ -109,7 +108,7 @@ export default class RoomParamScreen extends Component {
     };
 
     hideDialog() {
-        this.setState({visible: false});
+        this.setState({step: 0, visible: false});
     };
 
     showMode(currentMode, _display = 'default') {
