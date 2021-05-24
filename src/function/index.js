@@ -2,20 +2,36 @@
  * Translates Date Object into human readable format minutes, hours, days, and years
  *
  * @param  {Date} date      The Date how transform
- * @return {string}         The human readable date formatted dd/mm/YYYY HH/mm
+ * @return {string}         The human readable date formatted dd/mm/YYYY
  */
 export function formatDate(date) {
+    if (Object.prototype.toString.call(date) !== '[object Date]') {
+        return 'error';
+    }
     var day = date.getDate();
     var month = (date.getMonth() + 1);
-    var hours = date.getHours();
-    var minutes = date.getMinutes();
-
     day = day < 10 ? '0' + day : day;
     month = month < 10 ? '0' + month : month;
+
+    return day + '/' + month + '/' + date.getFullYear();
+}
+
+/**
+ * Translates Date Object into human readable format minutes, hours, days, and years
+ *
+ * @param  {Date} date      The Date how transform
+ * @return {string}         The human readable date formatted HH/mm
+ */
+export function formatDateTime(date) {
+    if (Object.prototype.toString.call(date) !== '[object Date]') {
+        return 'error';
+    }
+    var hours = date.getHours();
+    var minutes = date.getMinutes();
     minutes = minutes < 10 ? '0' + minutes : minutes;
 
     var strTime = hours + ':' + minutes;
-    return day + '/' + month + '/' + date.getFullYear() + ' à ' + strTime;
+    return strTime;
 }
 
 /**

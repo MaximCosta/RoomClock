@@ -42,22 +42,23 @@ export default function HomeScreen({navigation}) {
             .orderBy('latestMessage.createdAt', 'desc')
             .onSnapshot(querySnapshot => {
                 console.log({querySnapshot, access});
-                let filter = querySnapshot.docs.filter(v => access.includes(v.id));
-                const threads = filter.map(documentSnapshot => {
-                    return {
-                        _id: documentSnapshot.id,
-                        // give defaults
-                        name: '',
+                if (querySnapshot && !querySnapshot.empty) {
+                    let filter = querySnapshot.docs.filter(v => access.includes(v.id));
+                    const threads = filter.map(documentSnapshot => {
+                        return {
+                            _id: documentSnapshot.id,
+                            // give defaults
+                            name: '',
 
-                        latestMessage: {
-                            text: '',
-                        },
-                        ...documentSnapshot.data(),
-                    };
-                });
+                            latestMessage: {
+                                text: '',
+                            },
+                            ...documentSnapshot.data(),
+                        };
+                    });
 
-                setThreads(threads);
-
+                    setThreads(threads);
+                }
                 if (loading) {
                     setLoading(false);
                 }

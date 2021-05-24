@@ -22,17 +22,13 @@ import database from '@react-native-firebase/database';
 import Loading from '../components/Loading';
 import useStatsBar from '../utils/useStatusBar';
 import {AuthContext} from '../navigation/AuthProvider';
-import {dateForHumans, formatDate} from '../function';
+import {dateForHumans, formatDate, formatDateTime} from '../function';
 
 export default class RoomParamScreen extends Component {
     static contextType = AuthContext;
 
     constructor(props) {
         super(props);
-        //useStatsBar('light-content');
-        //const {user} = useContext(AuthContext);
-        //const currentUser = user.toJSON();
-        console.log('\n\n');
         this.state = {
             threadInfo: props.route.params,
             currentUser: undefined,
@@ -44,7 +40,7 @@ export default class RoomParamScreen extends Component {
             display: 'default',
             mode: 'date',
             date: new Date(),
-            desc: 'Seriez-vous disponible le $d pour une durée de $t',
+            desc: 'Seriez-vous disponible le $d à $t pour une durée de $p',
             event: [],
             _date: 0,
             _spin: 0,
@@ -56,37 +52,30 @@ export default class RoomParamScreen extends Component {
         if (!this.state.currentUser) {
             this.state.currentUser = this.context.user;
         }
-
-        const sfRef = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
-        sfRef.orderBy('createdAt', 'asc')
-            .where('event', '==', true)
-            .onSnapshot(async querySnapshot => {
-                if (!querySnapshot || querySnapshot.empty) {
-                    console.log('Erreur pas d\'évenement prévus');
-                } else {
+        const sfRef = database().ref(`/sondage/${this.state.threadInfo._id}`);
+        sfRef.on('value', (snapshot => {
+                const data = snapshot.val();
+                if (data) {
                     let uArray = [];
-                    for (const us of querySnapshot.docs) {
-                        let data = us.data();
-                        let usersVote = await sfRef.doc(us.id).collection('USERS').get();
+                    for (const [key, value] of Object.entries(data)) {
                         let uiArray = [];
-
-                        if (usersVote && !usersVote.empty) {
-                            for (const _us of usersVote.docs) {
-                                uiArray.push({..._us.data(), msgID: _us.id});
+                        if (value && value.users) {
+                            for (const [_uid, _data] of Object.entries(value.users)) {
+                                uiArray.push({choice: _data, user: _uid, msgID: key});
                             }
                         }
-
-                        data.users = uiArray;
-                        data.text = data.text.replace('{date}', formatDate(data.for.toDate()));
-                        data.text = data.text.replace('{length}', dateForHumans(data.length));
-                        //console.log(us.id, '=>', {...data, msgID: us.id});
-                        uArray.push({...data, msgID: us.id});
+                        value.users = uiArray;
+                        value.text = value.text.replace('$d', formatDate(new Date(value.for)));
+                        value.text = value.text.replace('$t', formatDateTime(new Date(value.for)));
+                        value.text = value.text.replace('$p', dateForHumans(value.length));
+                        uArray.push({...value, msgID: key});
                     }
-
-                    this.setState({event: uArray});
+                    this.setState({event: uArray, loading: false});
+                } else {
+                    this.setState({event: [], loading: false});
                 }
-                this.setState({loading: false});
-            });
+            }),
+        );
     }
 
     onChange(event, selectedDate) {
@@ -98,7 +87,7 @@ export default class RoomParamScreen extends Component {
             });
             this.setState({step: this.state.step + 1});
         } else {
-            this.hideDialog()
+            this.hideDialog();
         }
 
     };
@@ -108,7 +97,7 @@ export default class RoomParamScreen extends Component {
     };
 
     hideDialog() {
-        this.setState({step: 0, visible: false});
+        this.setState({step: 0, visible: false, show: false});
     };
 
     showMode(currentMode, _display = 'default') {
@@ -136,7 +125,9 @@ export default class RoomParamScreen extends Component {
                     <>
                         <Title>description</Title>
                         <Text style={{marginTop: 15}}>
-                            $d = {formatDate(this.state._date)} | $t = {dateForHumans(this.state._spin / 1000)}
+                            $d = {formatDate(this.state._date)} |
+                            $t = {formatDateTime(this.state._date)} |
+                            $p = {dateForHumans(this.state._spin / 1000)}
                         </Text>
                         <TextInput
                             multiline={true}
@@ -159,7 +150,9 @@ export default class RoomParamScreen extends Component {
                             numberOfLines={4}
                             disabled={true}
                             //onChangeText={(desc) => this.setState({desc})}
-                            value={this.state.desc.replace('$d', formatDate(this.state._date)).replace('$t', dateForHumans(this.state._spin / 1000))}
+                            value={this.state.desc.replace('$d', formatDate(this.state._date))
+                                .replace('$t', formatDateTime(this.state._date))
+                                .replace('$p', dateForHumans(this.state._spin / 1000))}
                             style={{
                                 borderColor: '#DFE1E5',
                                 borderRadius: 5,
@@ -192,15 +185,16 @@ export default class RoomParamScreen extends Component {
                 break;
             case 3:
                 this.state._spin = this.state.date.getTime() + Math.abs(this.state.date.getTimezoneOffset()) * 60000;
-                console.log(this.state._spin, this.state._date);
                 break;
         }
     }
 
-    reIcon() {
+    reIcon(item) {
         const {currentUser, threadInfo} = this.state;
         if (currentUser.uid === threadInfo.author) {
-            return <IconButton color={Colors.red500} icon="delete"/>;
+            return <IconButton color={Colors.red500} icon="delete" onPress={() => {
+                this.deleteEvent(item.msgID);
+            }}/>;
         }
     }
 
@@ -213,8 +207,36 @@ export default class RoomParamScreen extends Component {
         );
     }
 
+    saveEvent() {
+        const {_spin, _date, desc} = this.state;
+        let addm = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
+        if (_spin && _date && desc) {
+            addm.add({system: true, createdAt: (new Date()).getTime(), event: true}).then(ref => {
+                let upData = {};
+                upData[`/sondage/${this.state.threadInfo._id}/${ref.id}`] = {
+                    text: desc,
+                    for: _date.getTime(),
+                    length: _spin / 1000,
+                };
+                database().ref().update(upData);
+            });
+            this.setState({
+                _spin: 0,
+                _date: 0,
+                desc: 'Seriez-vous disponible le $d pour une durée de $t',
+                step: 0,
+                visible: false,
+            });
+        }
+    }
+
+    deleteEvent(id) {
+        database().ref(`/sondage/${this.state.threadInfo._id}/${id}`).remove();
+        firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES').doc(id).delete();
+    }
+
     render() {
-        const {loading, currentUser, threadInfo, event, show, date, display, mode, visible} = this.state;
+        const {loading, currentUser, threadInfo, event, show, date, display, mode, visible, step} = this.state;
         if (loading) {
             return <Loading/>;
         }
@@ -238,7 +260,7 @@ export default class RoomParamScreen extends Component {
                             <View style={{flex: 1}}>
                                 <Title style={styles.listTitle}>{item.text}</Title>
                                 <Subheading style={styles.listDescription}>
-                                    Pour le {formatDate(item.for.toDate())}
+                                    Pour le {formatDate(new Date(item.for))} à {formatDateTime(new Date(item.for))}
                                 </Subheading>
                                 <Subheading style={styles.listDescription}>
                                     durée : {dateForHumans(item.length)}
@@ -257,7 +279,7 @@ export default class RoomParamScreen extends Component {
 
                             </View>
                             <View style={{alignItems: 'center'}}>
-                                {this.reIcon()}
+                                {this.reIcon(item)}
                             </View>
                         </View>
                     )}
@@ -280,10 +302,12 @@ export default class RoomParamScreen extends Component {
                             {this.eventModal()}
                         </Dialog.Content>
                         <Dialog.Actions>
-
-                            <Button onPress={() => {
+                            {step !== 3 && <Button onPress={() => {
                                 this.eventMaker();
-                            }}>Suivant</Button>
+                            }}>Suivant</Button>}
+                            {step === 3 && <Button onPress={() => {
+                                this.saveEvent();
+                            }}>Finish</Button>}
                         </Dialog.Actions>
                     </Dialog>
                 </Portal>

@@ -20,9 +20,9 @@ export default function AddRoomScreen({navigation}) {
     const currentUser = user.toJSON();
 
     /**
-     * Create a new Firestore collection to save threads
-     */
 
+* Create a new Firestore collection to save threads
+    */
     function handleButtonPressCreate() {
         if (roomName.length > 0) {
             firestore()
@@ -43,13 +43,10 @@ export default function AddRoomScreen({navigation}) {
                         if (snapchot.val()) {
                             current.push(...Object.keys(snapchot.val()));
                         }
-                        console.log({current});
-
                         let rand;
                         do {
                             rand = getRandomizer(0, 999999).toString().padStart(6, 0);
                         } while (current.includes(rand));
-                        console.log(rand);
                         database().ref(`/pin`).child(rand).set(docRef.id);
                         database().ref(`/pin`).child(docRef.id).set(rand);
                     });
@@ -87,7 +84,6 @@ export default function AddRoomScreen({navigation}) {
         if (roomPin.length > 0) {
             database().ref(`/pin/${roomPin}`).once('value').then(snapchot => {
                 if (snapchot.val()) {
-                    console.log(snapchot.val());
                     database().ref(`/users/${currentUser.uid}/threads`).once('value').then(snapshot_user => {
                         if (snapshot_user.val()) {
                             if (!Object.values(snapshot_user.val()).includes(snapchot.val())) {

@@ -5,13 +5,15 @@ import {IconButton, ToggleButton} from 'react-native-paper';
 import {AuthContext} from '../navigation/AuthProvider';
 import firestore from '@react-native-firebase/firestore';
 import useStatsBar from '../utils/useStatusBar';
-import {formatDate, dateForHumans} from '../function';
+import {formatDate, dateForHumans, formatDateTime} from '../function';
+import database from '@react-native-firebase/database';
 
 export default function RoomScreen({route, navigation}) {
     useStatsBar('light-content');
 
     const [forceRefresh, setForceRefresh] = useState(0);
     const [messages, setMessages] = useState([]);
+    const [event, setEvent] = useState([]);
     const {thread} = route.params;
     const {user} = useContext(AuthContext);
     const currentUser = user.toJSON();
@@ -73,36 +75,46 @@ export default function RoomScreen({route, navigation}) {
                         };
                     }
 
-                    if (firebaseData.event) {
-                        let uEventRef = await firestore()
-                            .collection('THREADS')
-                            .doc(thread._id)
-                            .collection('MESSAGES')
-                            .doc(doc.id)
-                            .collection('USERS')
-                            .get();
-                        let users = {};
-                        if (!uEventRef.empty) {
-                            uEventRef.forEach(_doc => {
-                                users[_doc.data().user] = {..._doc.data(), _id: _doc.id};
-                            });
-                        }
-
-                        data.text = data.text.replace('{date}', formatDate(data.for.toDate()));
-                        data.text = data.text.replace('{length}', dateForHumans(data.length));
-                        data.users = users;
-                    }
                     messages.push(data);
                 }
-
-                //const messages = querySnapshot.docs.map(doc => {});
-
-                //console.log(messages);
 
                 setMessages(messages);
             });
 
         return () => messagesListener();
+    }, [forceRefresh]);
+
+    useEffect(() => {
+        const sfRef = database().ref(`/sondage/${thread._id}`);
+        const eventListener = sfRef.on('value', (snapshot => {
+                if (snapshot) {
+                    const data = snapshot.val();
+                    if (data) {
+                        let uArray = [];
+                        for (const [key, value] of Object.entries(data)) {
+                            let uiArray = {};
+                            if (value && value.users) {
+                                for (const [_uid, _data] of Object.entries(value.users)) {
+                                    uiArray[_uid] = {choice: _data, user: _uid, msgID: key}
+                                }
+                            }
+                            value.users = uiArray;
+                            value.text = value.text.replace('$d', formatDate(new Date(value.for)));
+                            value.text = value.text.replace('$t', formatDateTime(new Date(value.for)));
+                            value.text = value.text.replace('$p', dateForHumans(value.length));
+                            uArray.push({...value, msgID: key});
+                        }
+                        setEvent(uArray);
+                    } else {
+                        setEvent([]);
+                    }
+                } else {
+                    setEvent([]);
+                }
+            }),
+        );
+
+        return () => eventListener();
     }, [forceRefresh]);
 
     function renderBubble(props) {
@@ -126,7 +138,7 @@ export default function RoomScreen({route, navigation}) {
     function renderLoading() {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size='large' color='#6646ee'/>
+                <ActivityIndicator size="large" color="#6646ee"/>
             </View>
         );
     }
@@ -135,7 +147,7 @@ export default function RoomScreen({route, navigation}) {
         return (
             <Send {...props}>
                 <View style={styles.sendingContainer}>
-                    <IconButton icon='send' size={24} color='#6646ee'/>
+                    <IconButton icon="send" size={24} color="#6646ee"/>
                 </View>
             </Send>
         );
@@ -145,9 +157,9 @@ export default function RoomScreen({route, navigation}) {
         return (
             <View style={[styles.sendingContainer, {flex: 1}]}>
                 <IconButton
-                    icon='calendar'
+                    icon="calendar"
                     size={24}
-                    color='#6646ee'
+                    color="#6646ee"
                     onPress={() => navigation.navigate('Event', route.params.thread)}/>
                 <Composer {...props} />
             </View>
@@ -157,50 +169,79 @@ export default function RoomScreen({route, navigation}) {
     function scrollToBottomComponent() {
         return (
             <View style={styles.bottomComponentContainer}>
-                <IconButton icon='chevron-double-down' size={36} color='#6646ee'/>
+                <IconButton icon="chevron-double-down" size={36} color="#6646ee"/>
             </View>
         );
     }
 
     async function setCheck(choice, _id) {
-        await firestore()
-            .collection('THREADS')
-            .doc(thread._id)
-            .collection('MESSAGES')
-            .doc(_id)
-            .collection('USERS')
-            .add({choice: choice, user: currentUser.uid});
-        setForceRefresh(Math.random());
+        let upData = {};
+        upData[`/sondage/${thread._id}/${_id}/users/${currentUser.uid}`] = choice;
+        database().ref().update(upData);
 
+        // await firestore()
+        //     .collection('THREADS')
+        //     .doc(thread._id)
+        //     .collection('MESSAGES')
+        //     .doc(_id)
+        //     .collection('USERS')
+        //     .add({choice: choice, user: currentUser.uid});
+        setForceRefresh(Math.random());
     }
 
     function renderEvent(props) {
-        let currentMsg = props.currentMessage;
+        ;
+        let currentMessage = props.currentMessage;
+        let currentMsg = event.filter(e => e.msgID === currentMessage._id)[0];
+
+        if (!currentMessage) {
+            return;
+        }
+
+        if (!currentMessage.event) {
+            return (
+                <View style={styles.systemMessageWrapper}>
+                    <Text style={styles.systemMessageText}>
+                        {currentMessage.text}
+                    </Text>
+                </View>
+            );
+        }
 
         if (!currentMsg) {
             return;
         }
 
-        if (!currentMsg.event) {
-            return;
-        }
-
         if (currentMsg.users && currentMsg.users.hasOwnProperty(currentUser.uid)) {
-            //console.log(currentMsg.users);
             return (
-                <ToggleButton
-                    icon={currentMsg.users[currentUser.uid].choice ? 'check' : 'close'}
-                    value="center"
-                />
+                <>
+                    <View style={styles.systemMessageWrapper}>
+                        <Text style={styles.systemMessageText}>
+                            {currentMsg.text}
+                        </Text>
+                    </View>
+                    <ToggleButton
+                        icon={currentMsg.users[currentUser.uid].choice ? 'check' : 'close'}
+                        value="center"
+                    />
+                </>
             );
         }
 
-        if (currentMsg.for.toDate() > new Date()) {
+        if (new Date(currentMsg.for) > new Date()) {
             return (
-                <ToggleButton.Row onValueChange={value => setCheck(value, currentMsg._id)}>
-                    <ToggleButton icon="check" value={true}/>
-                    <ToggleButton icon="close" value={false}/>
-                </ToggleButton.Row>
+                <>
+                    <View style={styles.systemMessageWrapper}>
+                        <Text style={styles.systemMessageText}>
+                            {currentMsg.text}
+                        </Text>
+                    </View>
+                    <ToggleButton.Row onValueChange={value => setCheck(value, currentMsg.msgID)}>
+                        <ToggleButton icon="check" value={true}/>
+                        <ToggleButton icon="close" value={false}/>
+                    </ToggleButton.Row>
+                </>
+
             );
         }
 
@@ -211,11 +252,6 @@ export default function RoomScreen({route, navigation}) {
         return (
             <View style={styles.systemMessagerContainer}
                   key={props.currentMessage._id}>
-                <View style={styles.systemMessageWrapper}>
-                    <Text style={styles.systemMessageText}>
-                        {props.currentMessage.text}
-                    </Text>
-                </View>
                 {renderEvent(props)}
             </View>
         );
@@ -226,7 +262,7 @@ export default function RoomScreen({route, navigation}) {
             messages={messages}
             onSend={handleSend}
             user={{_id: currentUser.uid}}
-            placeholder='Type your message here...'
+            placeholder="Type your message here..."
             showUserAvatar
             alwaysShowSend
             scrollToBottom
@@ -259,6 +295,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 10,
         marginBottom: 20,
+        marginLeft: 20,
+        marginRight: 20,
     },
     systemMessageWrapper: {
         alignItems: 'center',
