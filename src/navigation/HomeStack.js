@@ -1,5 +1,6 @@
 import React, {useContext} from 'react';
-import {Alert} from 'react-native';
+
+import { createMaterialBottomTabNavigator } from '@react-navigation/material-bottom-tabs';
 import {createStackNavigator} from '@react-navigation/stack';
 import {IconButton} from 'react-native-paper';
 
@@ -11,7 +12,7 @@ import RoomEventScreen from '../screens/RoomEventScreen';
 
 import {AuthContext} from './AuthProvider';
 
-
+const Tab = createMaterialBottomTabNavigator();
 const ChatAppStack = createStackNavigator();
 const ModalStack = createStackNavigator();
 
@@ -90,7 +91,7 @@ function ChatApp() {
 }
 
 
-export default function HomeStack() {
+function ChatStack() {
     return (
         <ModalStack.Navigator mode='modal' headerMode='none'>
             <ModalStack.Screen name='ChatApp' component={ChatApp}/>
@@ -99,3 +100,11 @@ export default function HomeStack() {
     );
 }
 
+export default function HomeStack() {
+    return (
+        <Tab.Navigator>
+            <Tab.Screen name="Home" component={ChatStack} />
+            <Tab.Screen name="Settings" component={ChatStack} />
+        </Tab.Navigator>
+    );
+}

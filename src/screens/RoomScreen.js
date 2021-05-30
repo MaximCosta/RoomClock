@@ -92,17 +92,17 @@ export default function RoomScreen({route, navigation}) {
                     if (data) {
                         let uArray = [];
                         for (const [key, value] of Object.entries(data)) {
-                            let uiArray = {};
-                            if (value && value.users) {
-                                for (const [_uid, _data] of Object.entries(value.users)) {
-                                    uiArray[_uid] = {choice: _data, user: _uid, msgID: key}
-                                }
-                            }
-                            value.users = uiArray;
+                            // let uiArray = {};
+                            // if (value && value.users) {
+                            //     for (const [_uid, _data] of Object.entries(value.users)) {
+                            //         uiArray[_uid] = {choice: _data, user: _uid};
+                            //     }
+                            // }
+                            // value.users = uiArray;
                             value.text = value.text.replace('$d', formatDate(new Date(value.for)));
                             value.text = value.text.replace('$t', formatDateTime(new Date(value.for)));
                             value.text = value.text.replace('$p', dateForHumans(value.length));
-                            uArray.push({...value, msgID: key});
+                            uArray.push({...value, _id: key});
                         }
                         setEvent(uArray);
                     } else {
@@ -113,7 +113,6 @@ export default function RoomScreen({route, navigation}) {
                 }
             }),
         );
-
         return () => eventListener();
     }, [forceRefresh]);
 
@@ -179,24 +178,21 @@ export default function RoomScreen({route, navigation}) {
         upData[`/sondage/${thread._id}/${_id}/users/${currentUser.uid}`] = choice;
         database().ref().update(upData);
 
-        // await firestore()
-        //     .collection('THREADS')
-        //     .doc(thread._id)
-        //     .collection('MESSAGES')
-        //     .doc(_id)
-        //     .collection('USERS')
-        //     .add({choice: choice, user: currentUser.uid});
-        setForceRefresh(Math.random());
+        if (Object.values(upData)[0] === true) {
+            upData = {};
+            upData[`/users/${currentUser.uid}/threads/${thread._id}/events/${_id}`] = {
+                alarm: false,
+                note: '',
+                delnot: false,
+            };
+            database().ref().update(upData);
+        }
     }
 
     function renderEvent(props) {
         ;
         let currentMessage = props.currentMessage;
-        let currentMsg = event.filter(e => e.msgID === currentMessage._id)[0];
-
-        if (!currentMessage) {
-            return;
-        }
+        //let currentMsg = event.filter(e => e.msgID === currentMessage._id)[0];
 
         if (!currentMessage.event) {
             return (
@@ -208,35 +204,31 @@ export default function RoomScreen({route, navigation}) {
             );
         }
 
-        if (!currentMsg) {
-            return;
-        }
-
-        if (currentMsg.users && currentMsg.users.hasOwnProperty(currentUser.uid)) {
+        if (currentMessage.users && currentMessage.users.hasOwnProperty(currentUser.uid)) {
             return (
                 <>
                     <View style={styles.systemMessageWrapper}>
                         <Text style={styles.systemMessageText}>
-                            {currentMsg.text}
+                            {currentMessage.text}
                         </Text>
                     </View>
                     <ToggleButton
-                        icon={currentMsg.users[currentUser.uid].choice ? 'check' : 'close'}
+                        icon={currentMessage.users[currentUser.uid] ? 'check' : 'close'}
                         value="center"
                     />
                 </>
             );
         }
 
-        if (new Date(currentMsg.for) > new Date()) {
+        if (new Date(currentMessage.for) > new Date()) {
             return (
                 <>
                     <View style={styles.systemMessageWrapper}>
                         <Text style={styles.systemMessageText}>
-                            {currentMsg.text}
+                            {currentMessage.text}
                         </Text>
                     </View>
-                    <ToggleButton.Row onValueChange={value => setCheck(value, currentMsg.msgID)}>
+                    <ToggleButton.Row onValueChange={value => setCheck(value, currentMessage._id)}>
                         <ToggleButton icon="check" value={true}/>
                         <ToggleButton icon="close" value={false}/>
                     </ToggleButton.Row>
@@ -259,7 +251,7 @@ export default function RoomScreen({route, navigation}) {
 
     return (
         <GiftedChat
-            messages={messages}
+            messages={[...messages, ...event].sort((a, b) => (a.createdAt < b.createdAt) ? 1 : -1)}
             onSend={handleSend}
             user={{_id: currentUser.uid}}
             placeholder="Type your message here..."

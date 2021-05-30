@@ -211,15 +211,15 @@ export default class RoomParamScreen extends Component {
         const {_spin, _date, desc} = this.state;
         let addm = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
         if (_spin && _date && desc) {
-            addm.add({system: true, createdAt: (new Date()).getTime(), event: true}).then(ref => {
-                let upData = {};
-                upData[`/sondage/${this.state.threadInfo._id}/${ref.id}`] = {
-                    text: desc,
-                    for: _date.getTime(),
-                    length: _spin / 1000,
-                };
-                database().ref().update(upData);
+            database().ref('/sondage/').child(this.state.threadInfo._id).push({
+                createdAt: (new Date()).getTime(),
+                system: true,
+                event: true,
+                text: desc,
+                for: _date.getTime(),
+                length: _spin / 1000,
             });
+
             this.setState({
                 _spin: 0,
                 _date: 0,
@@ -231,8 +231,21 @@ export default class RoomParamScreen extends Component {
     }
 
     deleteEvent(id) {
-        database().ref(`/sondage/${this.state.threadInfo._id}/${id}`).remove();
-        firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES').doc(id).delete();
+        //database().ref(`/sondage/${this.state.threadInfo._id}/${id}`).remove();
+        let ColRef = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
+        let RelRef = database().ref(`/sondage/${this.state.threadInfo._id}/${id}`);
+
+        RelRef.child('users').once('value').then(snapshot => {
+            if (snapshot.val()) {
+                let _uid = Object.keys(snapshot.val())[0];
+                let choice = Object.values(snapshot.val())[0];
+                if (choice === true) {
+                    database().ref(`/users/${_uid}/threads/${this.state.threadInfo._id}/events/${id}`).remove();
+                }
+            }
+        });
+        RelRef.remove();
+        ColRef.doc(id).delete();
     }
 
     render() {

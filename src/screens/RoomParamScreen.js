@@ -21,7 +21,6 @@ export default function RoomParamScreen({route, navigation}) {
     //const onToggleSwitch = () => setIsSwitchOn(!isSwitchOn);
     const {user} = useContext(AuthContext);
     const currentUser = user.toJSON();
-    //console.log({route});
     let threadInfo = route.params;
 
     //
@@ -37,12 +36,10 @@ export default function RoomParamScreen({route, navigation}) {
             .orderBy('email', 'desc')
             .onSnapshot(querySnapshot => {
                 if (!querySnapshot || querySnapshot.empty) {
-                    console.log('Error pas d\'utilisateur');
                     return;
                 } else {
                     let uArray = [];
                     querySnapshot.forEach(us => {
-                        console.log(us.id, '=>', {...us.data(), msgID: us.id});
                         if (us.data().uid === threadInfo.author) {
                             uArray.unshift({...us.data(), msgID: us.id});
                             return;
@@ -59,9 +56,7 @@ export default function RoomParamScreen({route, navigation}) {
     useEffect(() => {
         const getPin = database().ref(`/pin/${threadInfo._id}/`).on('value', snapshot => {
             if (!snapshot || snapshot.empty || snapshot.length > 1) {
-                console.log('Error pas de code pin');
             } else {
-                console.log(snapshot.val());
                 setPin(snapshot.val());
             }
         });
@@ -71,13 +66,10 @@ export default function RoomParamScreen({route, navigation}) {
     useEffect(() => {
         const getPin = database().ref(`/pin/${pin || 1}/`).on('value', snapshot => {
             if (!snapshot || snapshot.empty || !snapshot.val()) {
-                console.log('Error pas de code pin');
                 setIsSwitchOn(false);
             } else if (typeof snapshot.val() === 'object') {
-                console.log('Error pas de code pin');
                 setIsSwitchOn(false);
             } else {
-                console.log('get reverse pin : ', snapshot.val());
                 setIsSwitchOn(true);
             }
         });
@@ -85,11 +77,8 @@ export default function RoomParamScreen({route, navigation}) {
     }, [pin]);
 
     async function deleteUsers(user) {
-        let uData = await database().ref(`/users/${user.uid}/threads`).once('value');
-        const key = Object.keys(uData.val()).find(key => uData.val()[key] === threadInfo._id);
-        database().ref(`/users/${user.uid}/threads`).child(key).remove();
-        uData = await firestore().collection('THREADS').doc(threadInfo._id).collection('USERS').doc(user.msgID);
-        uData.delete();
+        await database().ref(`/users/${user.uid}/threads/${threadInfo._id}`).remove();
+        await firestore().collection('THREADS').doc(threadInfo._id).collection('USERS').doc(user.msgID).delete();
     }
 
     async function onOffPin() {
@@ -108,13 +97,10 @@ export default function RoomParamScreen({route, navigation}) {
             if (snapchot.val()) {
                 current.push(...Object.keys(snapchot.val()));
             }
-            console.log({current});
-
             var rand;
             do {
                 rand = getRandomizer(0, 999999).toString().padStart(6, 0);
             } while (current.includes(rand));
-            console.log(rand);
             database().ref(`/pin`).child(rand).set(threadInfo._id);
             database().ref(`/pin`).child(threadInfo._id).set(rand);
         });

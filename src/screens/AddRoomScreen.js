@@ -21,8 +21,8 @@ export default function AddRoomScreen({navigation}) {
 
     /**
 
-* Create a new Firestore collection to save threads
-    */
+     * Create a new Firestore collection to save threads
+     */
     function handleButtonPressCreate() {
         if (roomName.length > 0) {
             firestore()
@@ -36,7 +36,12 @@ export default function AddRoomScreen({navigation}) {
                     },
                 })
                 .then(docRef => {
-                    database().ref(`/users/${currentUser.uid}/threads`).push(docRef.id);
+                    let data = {};
+                    data[`/users/${currentUser.uid}/threads/${docRef.id}`] = {
+                        uid: docRef.id,
+                        mute: false,
+                    };
+                    database().ref().update(data);
 
                     database().ref(`/pin`).once('value').then(snapchot => {
                         let current = [];
@@ -67,7 +72,13 @@ export default function AddRoomScreen({navigation}) {
     }
 
     function handleJoin(snapchot) {
-        database().ref(`/users/${currentUser.uid}/threads`).push(snapchot.val());
+        //database().ref(`/users/${currentUser.uid}/threads`).push(snapchot.val());
+        let data = {};
+        data[`/users/${currentUser.uid}/threads/${snapchot.val()}`] = {
+            uid: snapchot.val(),
+            mute: false,
+        };
+        database().ref().update(data);
         firestore().collection('THREADS').doc(snapchot.val()).collection('USERS').add({
             uid: currentUser.uid,
             email: currentUser.email,
@@ -102,23 +113,23 @@ export default function AddRoomScreen({navigation}) {
         <View style={styles.rootContainer}>
             <View style={styles.closeButtonContainer}>
                 <IconButton
-                    icon='close-circle'
+                    icon="close-circle"
                     size={36}
-                    color='#6646ee'
+                    color="#6646ee"
                     onPress={() => navigation.goBack()}
                 />
             </View>
             <View style={styles.innerContainer}>
                 <Title style={styles.title}>Create a new chat room</Title>
                 <FormInput
-                    labelName='Room Name'
+                    labelName="Room Name"
                     value={roomName}
                     onChangeText={text => setRoomName(text)}
-                    clearButtonMode='while-editing'
+                    clearButtonMode="while-editing"
                 />
                 <FormButton
-                    title='Create'
-                    modeValue='contained'
+                    title="Create"
+                    modeValue="contained"
                     labelStyle={styles.buttonLabel}
                     onPress={() => handleButtonPressCreate()}
                     disabled={roomName.length === 0}
@@ -128,14 +139,15 @@ export default function AddRoomScreen({navigation}) {
             <View style={styles.innerContainer}>
                 <Title style={styles.title}>Join a chat room</Title>
                 <FormInput
-                    labelName='Room Pin'
+                    labelName="Room Pin"
                     value={roomPin}
                     onChangeText={text => setRoomPin(text)}
-                    clearButtonMode='while-editing'
+                    clearButtonMode="while-editing"
+                    keyboardType="numeric"
                 />
                 <FormButton
-                    title='Join'
-                    modeValue='contained'
+                    title="Join"
+                    modeValue="contained"
                     labelStyle={styles.buttonLabel}
                     onPress={() => handleButtonPressJoin()}
                     disabled={roomPin.length === 0}
