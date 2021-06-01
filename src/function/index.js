@@ -1,5 +1,31 @@
 /**
- * Translates Date Object into human readable format minutes, hours, days, and years
+ * Translates Date Object into human readable format hours, days, and years
+ *
+ * @return {string}         The printable date complet
+ * @param {Object} info
+ */
+export function printEventDate(info) {
+    let startD = formatDate(new Date(info.dateD));
+    let startH = formatDateTime(new Date(info.dateD));
+    let endD = formatDate(new Date(info.dateF));
+    let endH = formatDateTime(new Date(info.dateF));
+    if (info.fullday) {
+        if (startD === endD) {
+            return `le ${startD}`;
+        }
+        return `Du ${startD} au ${endD}`;
+    }
+
+    if (startD === endD) {
+        return `Le ${startD} de ${startH} à ${endH}`;
+    }
+
+    return `Du ${startD} à ${startH} au ${endD} à ${endH}`;
+
+}
+
+/**
+ * Translates Date Object into human readable format hours, days, and years
  *
  * @param  {Date} date      The Date how transform
  * @return {string}         The human readable date formatted dd/mm/YYYY
@@ -14,6 +40,24 @@ export function formatDate(date) {
     month = month < 10 ? '0' + month : month;
 
     return day + '/' + month + '/' + date.getFullYear();
+}
+
+/**
+ * Translates Date Object into human readable format hours, days, and years
+ *
+ * @param  {Date} date      The Date how transform
+ * @return {string}         The human readable date formatted DD. d MM YYYY
+ */
+export function humanDate(date) {
+    if (Object.prototype.toString.call(date) !== '[object Date]') {
+        return 'error';
+    }
+    let dayN = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
+    let monthN = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+    let day = date.getDate();
+    day = day < 10 ? '0' + day : day;
+
+    return `${dayN[date.getDay()]} ${day} ${monthN[date.getMonth()]} ${date.getFullYear()}`;
 }
 
 /**

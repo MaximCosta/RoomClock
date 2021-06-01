@@ -5,11 +5,14 @@ import {IconButton, ToggleButton} from 'react-native-paper';
 import {AuthContext} from '../navigation/AuthProvider';
 import firestore from '@react-native-firebase/firestore';
 import useStatsBar from '../utils/useStatusBar';
-import {formatDate, dateForHumans, formatDateTime} from '../function';
+import {formatDate, dateForHumans, formatDateTime, printEventDate} from '../function';
 import database from '@react-native-firebase/database';
 
 export default function RoomScreen({route, navigation}) {
     useStatsBar('light-content');
+
+    const allColor = ['Tomate', 'Mandarine', 'Banane', 'Basilic', 'Sauge', 'Paon', 'Myrtille', 'Lavande', 'Raisin', 'Flamant rose', 'Graphite', 'Couleur par défaut'];
+    const allColorHex = ['#EA5553', '#F26F45', '#EBC252', '#44946A', '#48B382', '#2FA8E3', '#858EE1', '#7E8BCB', '#C878DB', '#DE857D', '#949493', '#7E8ACB'];
 
     const [forceRefresh, setForceRefresh] = useState(0);
     const [messages, setMessages] = useState([]);
@@ -99,9 +102,6 @@ export default function RoomScreen({route, navigation}) {
                             //     }
                             // }
                             // value.users = uiArray;
-                            value.text = value.text.replace('$d', formatDate(new Date(value.for)));
-                            value.text = value.text.replace('$t', formatDateTime(new Date(value.for)));
-                            value.text = value.text.replace('$p', dateForHumans(value.length));
                             uArray.push({...value, _id: key});
                         }
                         setEvent(uArray);
@@ -204,13 +204,32 @@ export default function RoomScreen({route, navigation}) {
             );
         }
 
+        const Utrue = Object.values(currentMessage.users || []).filter(e => e).length;
+        const Ufalse = Object.values(currentMessage.users || []).filter(e => !e).length;
+
         if (currentMessage.users && currentMessage.users.hasOwnProperty(currentUser.uid)) {
             return (
                 <>
-                    <View style={styles.systemMessageWrapper}>
-                        <Text style={styles.systemMessageText}>
-                            {currentMessage.text}
+                    <View
+                        style={[styles.systemMessageWrapper, {backgroundColor: allColorHex[allColor.indexOf(currentMessage.color)]}]}>
+                        <Text style={styles.systemMessageTextTitle}>
+                            {currentMessage.title}
                         </Text>
+                        {currentMessage.desc != '' && <Text style={styles.systemMessageTextDesc}>
+                            {currentMessage.desc}
+                        </Text>}
+                        <Text>{printEventDate(currentMessage)}</Text>
+                        <View style={styles.fa}>
+                            <Text>Stats : </Text>
+                            <View style={styles.fa}>
+                                <ToggleButton icon="check" size={16}/>
+                                <Text>{Utrue}</Text>
+                            </View>
+                            <View style={styles.fa}>
+                                <ToggleButton icon="close" size={16}/>
+                                <Text>{Ufalse}</Text>
+                            </View>
+                        </View>
                     </View>
                     <ToggleButton
                         icon={currentMessage.users[currentUser.uid] ? 'check' : 'close'}
@@ -220,13 +239,29 @@ export default function RoomScreen({route, navigation}) {
             );
         }
 
-        if (new Date(currentMessage.for) > new Date()) {
+        if (new Date(currentMessage.dateF) > new Date()) {
             return (
                 <>
-                    <View style={styles.systemMessageWrapper}>
-                        <Text style={styles.systemMessageText}>
-                            {currentMessage.text}
+                    <View
+                        style={[styles.systemMessageWrapper, {backgroundColor: allColorHex[allColor.indexOf(currentMessage.color)]}]}>
+                        <Text style={styles.systemMessageTextTitle}>
+                            {currentMessage.title}
                         </Text>
+                        {currentMessage.desc != '' && <Text style={styles.systemMessageTextDesc}>
+                            {currentMessage.desc}
+                        </Text>}
+                        <Text>{printEventDate(currentMessage)}</Text>
+                        <View style={styles.fa}>
+                            <Text>Stats : </Text>
+                            <View style={styles.fa}>
+                                <ToggleButton icon="check" size={16}/>
+                                <Text>{Utrue}</Text>
+                            </View>
+                            <View style={styles.fa}>
+                                <ToggleButton icon="close" size={16}/>
+                                <Text>{Ufalse}</Text>
+                            </View>
+                        </View>
                     </View>
                     <ToggleButton.Row onValueChange={value => setCheck(value, currentMessage._id)}>
                         <ToggleButton icon="check" value={true}/>
@@ -299,9 +334,23 @@ const styles = StyleSheet.create({
         paddingLeft: 10,
         paddingRight: 10,
     },
+
+    systemMessageTextTitle: {
+        fontSize: 16,
+        color: '#fff',
+        fontWeight: 'bold',
+    },
     systemMessageText: {
         fontSize: 14,
         color: '#fff',
         fontWeight: 'bold',
+    },
+    systemMessageTextDesc: {
+        fontSize: 12,
+        color: '#fff',
+    },
+    fa: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
 });

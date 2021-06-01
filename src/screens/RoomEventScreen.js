@@ -11,7 +11,7 @@ import {
     IconButton,
     Colors,
     ToggleButton,
-    Button,
+    Button, Switch, Badge, RadioButton,
 } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
@@ -22,7 +22,10 @@ import database from '@react-native-firebase/database';
 import Loading from '../components/Loading';
 import useStatsBar from '../utils/useStatusBar';
 import {AuthContext} from '../navigation/AuthProvider';
-import {dateForHumans, formatDate, formatDateTime} from '../function';
+import {dateForHumans, formatDate, formatDateTime, humanDate, printEventDate} from '../function';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+
+const MCI = MaterialCommunityIcons;
 
 export default class RoomParamScreen extends Component {
     static contextType = AuthContext;
@@ -34,16 +37,27 @@ export default class RoomParamScreen extends Component {
             currentUser: undefined,
             loading: true,
             show: false,
-            step: 0,
             st: 0,
             visible: false,
             display: 'default',
             mode: 'date',
             date: new Date(),
-            desc: 'Seriez-vous disponible le $d à $t pour une durée de $p',
             event: [],
-            _date: 0,
-            _spin: 0,
+
+            fullday: false,
+
+            allColor: ['Tomate', 'Mandarine', 'Banane', 'Basilic', 'Sauge', 'Paon', 'Myrtille', 'Lavande', 'Raisin', 'Flamant rose', 'Graphite', 'Couleur par défaut'],
+            allColorHex: ['#EA5553', '#F26F45', '#EBC252', '#44946A', '#48B382', '#2FA8E3', '#858EE1', '#7E8BCB', '#C878DB', '#DE857D', '#949493', '#7E8ACB'],
+            colorModal: false,
+
+            up: 1,
+            error: false,
+
+            _dateD: new Date(),
+            _dateF: new Date(),
+            _color: 'Couleur par défaut',
+            _title: '',
+            _desc: '',
         };
     }
 
@@ -65,9 +79,6 @@ export default class RoomParamScreen extends Component {
                             }
                         }
                         value.users = uiArray;
-                        value.text = value.text.replace('$d', formatDate(new Date(value.for)));
-                        value.text = value.text.replace('$t', formatDateTime(new Date(value.for)));
-                        value.text = value.text.replace('$p', dateForHumans(value.length));
                         uArray.push({...value, msgID: key});
                     }
                     this.setState({event: uArray, loading: false});
@@ -80,12 +91,22 @@ export default class RoomParamScreen extends Component {
 
     onChange(event, selectedDate) {
         if (event.type !== 'dismissed') {
-            const currentDate = selectedDate || this.state.date;
+
             this.setState({
                 show: Platform.OS === 'ios',
-                date: currentDate,
             });
-            this.setState({step: this.state.step + 1});
+            let currentDate;
+            switch (this.state.up) {
+                case 1:
+                    currentDate = selectedDate || this.state.date;
+                    this.setState({_dateD: currentDate});
+                    break;
+                case 2:
+                    currentDate = selectedDate || this.state.date;
+                    this.setState({_dateF: currentDate});
+                    break;
+            }
+
         } else {
             this.hideDialog();
         }
@@ -97,96 +118,137 @@ export default class RoomParamScreen extends Component {
     };
 
     hideDialog() {
-        this.setState({step: 0, visible: false, show: false});
+        this.setState({visible: false, show: false});
     };
 
-    showMode(currentMode, _display = 'default') {
-        if (this.state.display !== _display) {
-            this.setState({display: _display});
-        }
-        this.setState({
-            show: true,
-            mode: currentMode,
-        });
-    };
-
-    eventModal() {
-        const {step} = this.state;
-        switch (step) {
-            case 0:
-                return <Title>Choisir la Date de l'evenement</Title>;
+    showMode(currentMode, up = 1) {
+        this.setState({show: true, mode: currentMode, up: up});
+        let currentDate;
+        switch (up) {
             case 1:
-                return <Title>Choisir l'heure de début</Title>;
+                currentDate = this.state._dateD;
+                this.setState({date: currentDate});
+                break;
             case 2:
-                return <Title>Choisir la durée de l'evenement</Title>;
-            case 3:
-                this.eventMaker();
-                return (
-                    <>
-                        <Title>description</Title>
-                        <Text style={{marginTop: 15}}>
-                            $d = {formatDate(this.state._date)} |
-                            $t = {formatDateTime(this.state._date)} |
-                            $p = {dateForHumans(this.state._spin / 1000)}
-                        </Text>
-                        <TextInput
-                            multiline={true}
-                            numberOfLines={4}
-                            onChangeText={(desc) => this.setState({desc})}
-                            value={this.state.desc}
-                            style={{
-                                borderColor: '#DFE1E5',
-                                borderRadius: 5,
-                                borderWidth: 1,
-                                marginTop: 10,
-                                padding: 5,
-                                textAlignVertical: 'top',
-                            }}
-                        />
-
-                        <Text style={{marginTop: 15}}>Text formatter:</Text>
-                        <TextInput
-                            multiline={true}
-                            numberOfLines={4}
-                            disabled={true}
-                            //onChangeText={(desc) => this.setState({desc})}
-                            value={this.state.desc.replace('$d', formatDate(this.state._date))
-                                .replace('$t', formatDateTime(this.state._date))
-                                .replace('$p', dateForHumans(this.state._spin / 1000))}
-                            style={{
-                                borderColor: '#DFE1E5',
-                                borderRadius: 5,
-                                borderWidth: 1,
-                                marginTop: 10,
-                                padding: 5,
-                                textAlignVertical: 'top',
-                            }}
-                        />
-                    </>
-                );
+                currentDate = this.state._dateF;
+                this.setState({date: currentDate});
+                break;
         }
     }
 
-    eventMaker() {
-        const {step} = this.state;
-        switch (step) {
-            case 0:
-                this.state.date = new Date();
-                this.state.date.setSeconds(0, 0);
-                this.showMode('date', 'default');
-                break;
-            case 1:
-                this.showMode('time', 'default');
-                break;
-            case 2:
-                this.state._date = this.state.date;
-                this.state.date = new Date(0);
-                this.showMode('time', 'spinner');
-                break;
-            case 3:
-                this.state._spin = this.state.date.getTime() + Math.abs(this.state.date.getTimezoneOffset()) * 60000;
-                break;
-        }
+    erreurMakeRender() {
+        return (
+            <Portal>
+                <Dialog visible={this.state.error} onDismiss={() => this.setState({error: false})}>
+                    <Dialog.Title>Erreur</Dialog.Title>
+                    <Dialog.Content>
+                        <Text>{this.state.error}</Text>
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button color="#E9EBED" onPress={() => this.setState({error: false})}>Done</Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
+        );
+    }
+
+    colorChoseRender() {
+        const {colorModal, _color, allColor, allColorHex} = this.state;
+        return (
+            <Portal>
+                <Dialog visible={colorModal} onDismiss={() => this.setState({colorModal: false})}>
+                    <Dialog.Title>Alert</Dialog.Title>
+                    <Dialog.Content>
+                        <RadioButton.Group onValueChange={nv => this.setState({_color: nv})} value={_color}>
+                            {allColor.map(cr => {
+                                return (
+                                    <View key={cr} style={{flexDirection: 'row', alignItems: 'center'}}>
+                                        <RadioButton
+                                            value={cr}
+                                            uncheckedColor={allColorHex[allColor.indexOf(cr)]}
+                                            color={allColorHex[allColor.indexOf(cr)]}
+                                        />
+                                        <Text style={{marginLeft: 15}}>{cr}</Text>
+                                    </View>
+                                );
+                            })}
+                        </RadioButton.Group>
+                    </Dialog.Content>
+                    <Dialog.Actions>
+                        <Button color="#E9EBED" onPress={() => this.setState({colorModal: false})}>Done</Button>
+                    </Dialog.Actions>
+                </Dialog>
+            </Portal>
+        );
+    }
+
+    eventModal() {
+        const {_dateD, _dateF, _color, fullday, _title, _desc, allColorHex, allColor} = this.state;
+        return <View style={styles.mp0}>
+            <TextInput
+                value={_title}
+                onChangeText={(e) => this.setState({_title: e})}
+                placeholder="Ajouter un titre*"
+                style={styles.etitle}
+
+            />
+            <Divider style={styles.divider}/>
+            <View style={{marginLeft: 10}}>
+                <View style={styles.econtainer}>
+                    <View style={styles.fa}>
+                        <MCI name="clock-outline" color="#9BA0A7" size={26}
+                             style={{marginRight: 10}}/>
+                        <Text>Toute la journée</Text>
+                    </View>
+                    <Switch value={fullday} onValueChange={() => this.setState({fullday: !fullday})}/>
+                </View>
+                <View style={{marginLeft: 25}}>
+                    <View style={styles.econtainer}>
+                        <Button onPress={() => this.showMode('date', 1)} color="#E9EBED" uppercase={false}
+                                mode="text">{humanDate(_dateD)}</Button>
+                        {!fullday &&
+                        <Button onPress={() => this.showMode('time', 1)} color="#E9EBED" uppercase={false}
+                                mode="text">{formatDateTime(_dateD)}</Button>}
+                    </View>
+                    <View style={styles.econtainer}>
+                        <Button onPress={() => this.showMode('date', 2)} color="#E9EBED" uppercase={false}
+                                mode="text">{humanDate(_dateF)}</Button>
+                        {!fullday &&
+                        <Button onPress={() => this.showMode('time', 2)} color="#E9EBED" uppercase={false}
+                                mode="text">{formatDateTime(_dateF)}</Button>}
+                    </View>
+                </View>
+            </View>
+            <Divider style={styles.divider}/>
+            <View style={{marginLeft: 13}}>
+                <View style={styles.fa}>
+                    <View
+                        onPress={() => this.setState({colorModal: true})}
+                        style={{
+                            borderRadius: 5,
+                            backgroundColor: allColorHex[allColor.indexOf(_color)],
+                            height: 20,
+                            width: 20,
+                            marginRight: 0,
+                        }}/>
+                    <Button uppercase={false} color="#E9EBED" onPress={() => this.setState({colorModal: true})}
+                            mode="text">
+                        {_color}
+                    </Button>
+                </View>
+            </View>
+            <Divider style={styles.divider}/>
+            <View style={{marginLeft: 10, marginBottom: 20}}>
+                <View style={styles.fa}>
+                    <MCI name="text" color="#9BA0A7" size={26} style={{marginRight: 10}}/>
+                    <TextInput
+                        value={_desc}
+                        onChangeText={(e) => this.setState({_desc: e})}
+                        placeholder="Ajouter une description"
+                    />
+                </View>
+            </View>
+        </View>;
     }
 
     reIcon(item) {
@@ -208,31 +270,46 @@ export default class RoomParamScreen extends Component {
     }
 
     saveEvent() {
-        const {_spin, _date, desc} = this.state;
-        let addm = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
-        if (_spin && _date && desc) {
-            database().ref('/sondage/').child(this.state.threadInfo._id).push({
-                createdAt: (new Date()).getTime(),
-                system: true,
-                event: true,
-                text: desc,
-                for: _date.getTime(),
-                length: _spin / 1000,
-            });
+        const {_dateD, _dateF, _color, fullday, _title, _desc, allColorHex, allColor} = this.state;
 
-            this.setState({
-                _spin: 0,
-                _date: 0,
-                desc: 'Seriez-vous disponible le $d pour une durée de $t',
-                step: 0,
-                visible: false,
-            });
+        if (fullday) {
+            _dateD.setHours(0, 0, 0, 0);
+            _dateF.setHours(0, 0, 0, 0);
         }
+
+        if (_dateF - _dateD < 0) {
+            this.setState({error: 'vous ne pouvez pas avoir une date de début inférieur a la date de fin'});
+            return;
+        }
+
+        if (!_dateD || !_dateF || !_color || !_title) {
+            this.setState({error: 'le titre, la date de début et de fin sont obligatoires.'});
+            return;
+        }
+
+        //let addm = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
+        database().ref('/sondage/').child(this.state.threadInfo._id).push({
+            createdAt: (new Date()).getTime(),
+            system: true,
+            event: true,
+
+            title: _title,
+            desc: _desc,
+            fullday: fullday,
+            dateD: _dateD.getTime(),
+            dateF: _dateF.getTime(),
+            color: _color,
+
+        });
+
+        this.setState({
+            visible: false,
+        });
     }
 
     deleteEvent(id) {
         //database().ref(`/sondage/${this.state.threadInfo._id}/${id}`).remove();
-        let ColRef = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
+        //let ColRef = firestore().collection('THREADS').doc(this.state.threadInfo._id).collection('MESSAGES');
         let RelRef = database().ref(`/sondage/${this.state.threadInfo._id}/${id}`);
 
         RelRef.child('users').once('value').then(snapshot => {
@@ -245,11 +322,23 @@ export default class RoomParamScreen extends Component {
             }
         });
         RelRef.remove();
-        ColRef.doc(id).delete();
+        //ColRef.doc(id).delete();
     }
 
     render() {
-        const {loading, currentUser, threadInfo, event, show, date, display, mode, visible, step} = this.state;
+        const {
+            loading,
+            currentUser,
+            threadInfo,
+            event,
+            show,
+            date,
+            display,
+            mode,
+            visible,
+            allColor,
+            allColorHex,
+        } = this.state;
         if (loading) {
             return <Loading/>;
         }
@@ -269,22 +358,26 @@ export default class RoomParamScreen extends Component {
                         </View>
                     )}
                     renderItem={({item}) => (
-                        <View style={{marginLeft: 20, marginTop: 20, flexDirection: 'row'}}>
+                        <View style={{
+                            marginLeft: 20,
+                            marginTop: 20,
+                            paddingLeft: 5,
+                            flexDirection: 'row',
+                            borderLeftColor: allColorHex[allColor.indexOf(item.color)],
+                            borderLeftWidth: 2,
+                        }}>
                             <View style={{flex: 1}}>
-                                <Title style={styles.listTitle}>{item.text}</Title>
-                                <Subheading style={styles.listDescription}>
-                                    Pour le {formatDate(new Date(item.for))} à {formatDateTime(new Date(item.for))}
-                                </Subheading>
-                                <Subheading style={styles.listDescription}>
-                                    durée : {dateForHumans(item.length)}
-                                </Subheading>
-                                <View style={styles.statsContainer}>
+                                <Title style={styles.listTitle}>{item.title}</Title>
+                                {item.desc !== '' &&
+                                <Subheading style={styles.listDescription}>{item.desc}</Subheading>}
+                                <Subheading style={styles.listDescription}>{printEventDate(item)}</Subheading>
+                                <View style={styles.fa}>
                                     <Text>Stats : </Text>
-                                    <View style={styles.statsContainer}>
+                                    <View style={styles.fa}>
                                         <ToggleButton icon="check"/>
                                         <Text>{item.users.filter(e => e.choice).length}</Text>
                                     </View>
-                                    <View style={styles.statsContainer}>
+                                    <View style={styles.fa}>
                                         <ToggleButton icon="close"/>
                                         <Text>{item.users.filter(e => !e.choice).length}</Text>
                                     </View>
@@ -310,20 +403,17 @@ export default class RoomParamScreen extends Component {
                 )}
                 <Portal>
                     <Dialog visible={visible} onDismiss={() => this.hideDialog()}>
-                        <Dialog.Title>Create Event</Dialog.Title>
-                        <Dialog.Content>
-                            {this.eventModal()}
-                        </Dialog.Content>
-                        <Dialog.Actions>
-                            {step !== 3 && <Button onPress={() => {
-                                this.eventMaker();
-                            }}>Suivant</Button>}
-                            {step === 3 && <Button onPress={() => {
+                        <Dialog.Actions style={{justifyContent: 'space-between'}}>
+                            <IconButton color="#9BA0A7" icon="close" onPress={() => this.hideDialog()}/>
+                            <Button mode="contained" color="#255B96" onPress={() => {
                                 this.saveEvent();
-                            }}>Finish</Button>}
+                            }}>Enregistrer</Button>
                         </Dialog.Actions>
+                        {this.eventModal()}
                     </Dialog>
                 </Portal>
+                {this.colorChoseRender()}
+                {this.erreurMakeRender()}
             </View>
         );
     }
@@ -360,10 +450,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    statsContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
     textAreaContainer: {
         marginTop: 20,
         borderColor: Colors.grey500,
@@ -375,5 +461,29 @@ const styles = StyleSheet.create({
         height: 150,
         justifyContent: 'flex-start',
     },
+    mp0: {
+        margin: 0,
+        padding: 0,
+    },
+    etitle: {
+        fontSize: 18,
+        marginLeft: 40,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#9BA0A7',
+        marginTop: 10,
+        marginBottom: 10,
+    },
+    econtainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    fa: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+
 });
 
