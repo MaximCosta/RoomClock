@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Dimensions } from 'react-native';
 import { Button } from 'react-native-paper';
 
+
 const { width, height } = Dimensions.get('screen');
 
 export default function FormButton({ title, modeValue, ...rest }) {

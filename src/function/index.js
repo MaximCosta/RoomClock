@@ -118,3 +118,35 @@ export function dateForHumans(seconds) {
 export function getRandomizer(bottom, top) {
     return Math.floor(Math.random() * (1 + top - bottom)) + bottom;
 }
+
+
+export function getColorPack(pack = 1) {
+    switch (pack) {
+        case 1:
+            return ['#FF6868', '#FFB468', '#FFF268', '#A1FF68', '#7CF3DF', '#689BFF', '#CD68FF', '#FF68C3'];
+        case 2:
+            return {
+                '#FF6868': '#FF686899',
+                '#FFB468': '#FFB46899',
+                '#FFF268': '#FFF26899',
+                '#A1FF68': '#A1FF6899',
+                '#7CF3DF': '#7CF3DF99',
+                '#689BFF': '#689BFF99',
+                '#CD68FF': '#CD68FF99',
+                '#FF68C3': '#FF68C399',
+                '#FF2459': '#FF245999',
+            };
+        case 3:
+            return {
+                '#FF6868': '#FF6868CD',
+                '#FFB468': '#FFB468CD',
+                '#FFF268': '#FFF268CD',
+                '#A1FF68': '#A1FF68CD',
+                '#7CF3DF': '#7CF3DFCD',
+                '#689BFF': '#689BFFCD',
+                '#CD68FF': '#CD68FFCD',
+                '#FF68C3': '#FF68C3CD',
+                '#FF2459': '#FF245CD9',
+            };
+    }
+}

@@ -422,7 +422,6 @@ export default class RoomParamScreen extends Component {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#f5f5f5',
         flex: 1,
     },
     pin: {

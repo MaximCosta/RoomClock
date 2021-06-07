@@ -6,20 +6,20 @@ const { width, height } = Dimensions.get('screen');
 
 export default function FormInput({ labelName, ...rest }) {
   return (
-    <TextInput
-      label={labelName}
-      style={styles.input}
-      numberOfLines={1}
-      {...rest}
-    />
+      <TextInput
+          mode='outlined'
+          label={labelName}
+          {...rest}
+      />
   );
 }
 
 const styles = StyleSheet.create({
   input: {
-    marginTop: 10,
-    marginBottom: 10,
-    width: width / 1.5,
-    height: height / 15
+    borderRadius:15,
+    height: 40,
+    width:40,
+    margin: 12,
+    borderWidth: 1,
   }
 });

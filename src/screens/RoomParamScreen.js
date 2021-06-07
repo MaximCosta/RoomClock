@@ -161,7 +161,6 @@ export default function RoomParamScreen({route, navigation}) {
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#f5f5f5',
         flex: 1,
     },
     pin: {

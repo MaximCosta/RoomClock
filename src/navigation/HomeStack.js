@@ -1,10 +1,11 @@
-import React, {useContext} from 'react';
+import React, {useContext, useState} from 'react';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import {createMaterialBottomTabNavigator} from '@react-navigation/material-bottom-tabs';
 import {createStackNavigator} from '@react-navigation/stack';
-import {IconButton} from 'react-native-paper';
+import {IconButton, Appbar, Menu, Provider, Divider, Portal, Dialog, Paragraph, Button} from 'react-native-paper';
 
+import jjj from '../screens/EventScreen';
 import HomeScreen from '../screens/HomeScreen';
 import AddRoomScreen from '../screens/AddRoomScreen';
 import RoomScreen from '../screens/RoomScreen';
@@ -17,45 +18,88 @@ const Tab = createMaterialBottomTabNavigator();
 const ChatAppStack = createStackNavigator();
 const ModalStack = createStackNavigator();
 
+import {getFocusedRouteNameFromRoute, useTheme} from '@react-navigation/native';
+import {Dimensions, View} from 'react-native';
+
+const {width, height} = Dimensions.get('screen');
+
 /**
  * All chat app related screens
  */
 
-function ChatApp() {
+const Header = ({scene, previous, navigation}) => {
     const {logout} = useContext(AuthContext);
+    const {options} = scene.descriptor;
+    const title =
+        options.headerTitle !== undefined
+            ? options.headerTitle
+            : options.title !== undefined
+            ? options.title
+            : scene.route.name;
+
+    const [visible, setVisible] = useState(false);
+
+    const closeMenu = () => setVisible(false);
+
+    const openMenu = () => setVisible(true);
+
+    const toggleMenu = () => setVisible(!visible);
+
+    const havePreHead = options.headerRight && options.headerRight();
+
+    return (
+        <>
+            <Appbar.Header style={{backgroundColor: '#1B1B1BFF'}}>
+                {scene.route.name !== 'Home' && <Appbar.BackAction onPress={navigation.goBack}/>}
+                <Appbar.Content title={title} titleStyle={{
+                    color: '#ffffff',
+                    fontFamily: 'Montserrat',
+                    fontWeight: '900',
+                    fontSize: 36,
+                    lineHeight: 46,
+                }}/>
+                {havePreHead}
+                {!havePreHead && <Appbar.Action icon="magnify" onPress={() => console.log('test')}/>}
+                {!havePreHead && <Appbar.Action icon="dots-vertical" onPress={toggleMenu}/>}
+
+
+            </Appbar.Header>
+            <Portal>
+                <Provider>
+                    <View>
+                        <Menu
+                            visible={visible}
+                            onDismiss={closeMenu}
+                            anchor={{x: width, y: 50}}
+                        >
+                            <Menu.Item title="Users"/>
+                            <Menu.Item title="Parametre"/>
+                            <Divider/>
+                            <Menu.Item onPress={() => logout()} title="Logout"/>
+                        </Menu>
+                    </View>
+                </Provider>
+            </Portal>
+
+        </>
+    );
+};
+
+export default function HomeStack() {
 
     return (
         <ChatAppStack.Navigator
             screenOptions={{
-                headerStyle: {
-                    backgroundColor: '#6646ee',
-                },
-                headerTintColor: '#ffffff',
-                headerTitleStyle: {
-                    fontSize: 22,
-                },
+                header: ({scene, previous, navigation}) => (
+                    <Header scene={scene} previous={previous} navigation={navigation}/>
+                ),
             }}
         >
             <ChatAppStack.Screen
                 name="Home"
-                component={HomeBottom}
-                options={({navigation}) => ({
-                    headerRight: () => (
-                        <IconButton
-                            icon="message-plus"
-                            size={28}
-                            color="#ffffff"
-                            onPress={() => navigation.navigate('AddRoom')}
-                        />
-                    ),
-                    headerLeft: () => (
-                        <IconButton
-                            icon="logout-variant"
-                            size={28}
-                            color="#ffffff"
-                            onPress={() => logout()}
-                        />
-                    ),
+                component={HomeScreen}
+                options={({route, navigation}) => ({
+                    title: route.params?.title || 'ROOMS',
                 })}
             />
             <ChatAppStack.Screen
@@ -92,37 +136,6 @@ function ChatApp() {
 }
 
 
-export default function HomeStack() {
-    return (
-        <ModalStack.Navigator
-            screenOptions={{
-                headerShown: false,
-                cardStyle: { backgroundColor: 'transparent' },
-                cardOverlayEnabled: true,
-                cardStyleInterpolator: ({ current: { progress } }) => ({
-                    cardStyle: {
-                        opacity: progress.interpolate({
-                            inputRange: [0, 0.5, 0.9, 1],
-                            outputRange: [0, 0.25, 0.7, 1],
-                        }),
-                    },
-                    overlayStyle: {
-                        opacity: progress.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, 0.5],
-                            extrapolate: 'clamp',
-                        }),
-                    },
-                }),
-            }}
-            mode="modal"
-        >
-            <ModalStack.Screen name="ChatApp" component={ChatApp}/>
-            <ModalStack.Screen name="AddRoom" component={AddRoomScreen}/>
-        </ModalStack.Navigator>
-    );
-}
-
 function HomeBottom() {
     return (
         <Tab.Navigator
@@ -143,7 +156,7 @@ function HomeBottom() {
             />
             <Tab.Screen
                 name="Calendar"
-                component={HomeScreen}
+                component={jjj}
                 options={{
                     tabBarLabel: 'Calendar',
                     tabBarIcon: ({color}) => (

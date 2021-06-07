@@ -178,12 +178,21 @@ export default function RoomScreen({route, navigation}) {
         upData[`/sondage/${thread._id}/${_id}/users/${currentUser.uid}`] = choice;
         database().ref().update(upData);
 
+        let currEvent = event.filter(e => e._id === _id)[0];
+
+        if (currEvent.users) {
+            delete currEvent.users;
+            delete currEvent.user;
+            delete currEvent.system;
+        }
+
         if (Object.values(upData)[0] === true) {
             upData = {};
             upData[`/users/${currentUser.uid}/threads/${thread._id}/events/${_id}`] = {
                 alarm: false,
                 note: '',
                 delnot: false,
+                ...currEvent,
             };
             database().ref().update(upData);
         }
